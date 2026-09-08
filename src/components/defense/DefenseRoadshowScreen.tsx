@@ -35,6 +35,8 @@ import {
 import { DefenseProject, ModeDef, DefenseSessionConfig, RoadshowSlide, VirtualJudge, RoadshowEvaluation } from './defenseTypes';
 import { MOCK_ROADSHOW_SLIDES, MOCK_VIRTUAL_JUDGES } from './defenseConstants';
 import DefenseVideoWindow from './DefenseVideoWindow';
+import RoadshowDefenseStage, { DefenseQAResult } from './RoadshowDefenseStage';
+import RoadshowCombinedReportModal from './RoadshowCombinedReportModal';
 
 interface Props {
   project: DefenseProject;
@@ -73,6 +75,8 @@ export default function DefenseRoadshowScreen({
   const [slideTimeSpent, setSlideTimeSpent] = useState<number[]>(new Array(MOCK_ROADSHOW_SLIDES.length).fill(0));
   const [judges, setJudges] = useState<VirtualJudge[]>(MOCK_VIRTUAL_JUDGES);
   const [speechPacingStatus, setSpeechPacingStatus] = useState<'slow' | 'optimal' | 'fast'>('optimal');
+  const [qaResults, setQaResults] = useState<DefenseQAResult[]>([]);
+  const [showCombinedReportModal, setShowCombinedReportModal] = useState(false);
 
   const pptContainerRef = useRef<HTMLDivElement>(null);
   const currentSlide = MOCK_ROADSHOW_SLIDES[currentSlideIndex] || MOCK_ROADSHOW_SLIDES[0];
@@ -84,8 +88,10 @@ export default function DefenseRoadshowScreen({
     const interval = setInterval(() => {
       setTimeLeft(prev => {
         if (prev <= 1) {
-          setIsRunning(false);
-          setShowFinishModal(true);
+          // If on roadshow presentation slides, transition directly to P9 Defense
+          if (currentSlideIndex < 8) {
+            setCurrentSlideIndex(8);
+          }
           return 0;
         }
         return prev - 1;
@@ -160,8 +166,8 @@ export default function DefenseRoadshowScreen({
     if (currentSlideIndex < MOCK_ROADSHOW_SLIDES.length - 1) {
       setCurrentSlideIndex(prev => prev + 1);
     } else {
-      // Finished all slides
-      setShowFinishModal(true);
+      // Finished all slides / on Slide 9 (Defense) -> Show Combined Report
+      setShowCombinedReportModal(true);
     }
   };
 
@@ -187,6 +193,10 @@ export default function DefenseRoadshowScreen({
     const persuasivenessScore = 92;
     const stagePresenceScore = isAutoSpeechPlaying ? 88 : 94;
     const totalScore = Math.round((pacingScore * 0.3) + (completenessScore * 0.3) + (persuasivenessScore * 0.25) + (stagePresenceScore * 0.15));
+
+    const qaAverage = qaResults.length > 0
+      ? Math.round(qaResults.reduce((a, b) => a + b.score, 0) / qaResults.length)
+      : 95;
 
     return {
       timePacingScore: Math.max(60, pacingScore),
@@ -233,14 +243,20 @@ export default function DefenseRoadshowScreen({
         '第5页提到商业模式毛利率58%，请问其中核心光学镜片是自主研磨还是外协定制？若供应链断供成本会上升多少？',
         '第6页宁德时代一级供应商中试180天，是否有出具具备法律效力的第三方CMA/CNAS验收合格公函？',
         '项目负责人林博士如果毕业后留校任教，是否能确保100%全职投入深瞳视界的规模化量产？'
-      ]
+      ],
+      qaRoundsCount: qaResults.length || 4,
+      qaAverageScore: qaAverage,
+      qaQuestionsAndAnswers: qaResults
     };
   };
 
   const handleFinalize = (proceedToQA: boolean) => {
-    const evalData = generateEvaluation();
     setShowFinishModal(false);
-    onFinishRoadshow(evalData, proceedToQA);
+    if (proceedToQA) {
+      setCurrentSlideIndex(8); // Switch directly to Slide 9: 评审席与答辩
+    } else {
+      setShowCombinedReportModal(true);
+    }
   };
 
   // Color theme for remaining time
@@ -338,13 +354,19 @@ export default function DefenseRoadshowScreen({
             <span className="hidden sm:inline">{showVideoWindow ? '实战视讯 开' : '实战视讯'}</span>
           </button>
 
-          {/* Finish Roadshow & Enter Q&A */}
+          {/* Finish Roadshow & Enter Q&A / Output Report */}
           <button
-            onClick={() => setShowFinishModal(true)}
+            onClick={() => {
+              if (currentSlideIndex === 8) {
+                setShowCombinedReportModal(true);
+              } else {
+                setCurrentSlideIndex(8);
+              }
+            }}
             className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-md transition-all active:scale-95"
           >
             <CheckCircle2 size={15} />
-            <span>完成路演并答辩</span>
+            <span>{currentSlideIndex === 8 ? '出具全维实训报告' : '完成路演进入答辩 (P9)'}</span>
           </button>
         </div>
       </header>
@@ -356,7 +378,9 @@ export default function DefenseRoadshowScreen({
           <div 
             ref={pptContainerRef}
             onMouseMove={handleMouseMove}
-            className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 rounded-2xl border border-slate-800 shadow-xl overflow-hidden aspect-[16/9.5] sm:aspect-[16/9] flex flex-col justify-between p-6 sm:p-8 text-white select-none transition-all"
+            className={`relative bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-950 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col justify-between p-5 sm:p-7 text-white select-none transition-all ${
+              currentSlideIndex === 8 ? 'min-h-[540px] aspect-auto' : 'aspect-[16/9.5] sm:aspect-[16/9]'
+            }`}
           >
             {/* Ambient Backlight */}
             <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -373,7 +397,11 @@ export default function DefenseRoadshowScreen({
             {/* Top Bar inside Slide */}
             <div className="relative z-10 flex items-center justify-between border-b border-white/10 pb-3">
               <div className="flex items-center gap-2.5">
-                <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/30 border border-indigo-400/40 text-[11px] font-bold text-indigo-300">
+                <span className={`px-2.5 py-0.5 rounded-full border text-[11px] font-bold ${
+                  currentSlideIndex === 8
+                    ? 'bg-amber-500/30 border-amber-400/50 text-amber-300'
+                    : 'bg-indigo-500/30 border-indigo-400/40 text-indigo-300'
+                }`}>
                   {currentSlide.category}
                 </span>
                 <span className="text-xs text-slate-400 font-mono">
@@ -383,8 +411,8 @@ export default function DefenseRoadshowScreen({
 
               <div className="flex items-center gap-3 text-xs text-slate-400">
                 <div className="flex items-center gap-1.5 font-mono">
-                  <Clock size={13} className="text-indigo-400" />
-                  <span>本页建议: {currentSlide.plannedSeconds}s</span>
+                  <Clock size={13} className={currentSlideIndex === 8 ? 'text-amber-400' : 'text-indigo-400'} />
+                  <span>{currentSlideIndex === 8 ? '多评委实时质询' : `本页建议: ${currentSlide.plannedSeconds}s`}</span>
                   <span className="text-slate-600">|</span>
                   <span className={slideTimeSpent[currentSlideIndex] > currentSlide.plannedSeconds ? 'text-amber-400 font-bold' : 'text-emerald-400'}>
                     已用: {slideTimeSpent[currentSlideIndex] || 0}s
@@ -393,61 +421,77 @@ export default function DefenseRoadshowScreen({
               </div>
             </div>
 
-            {/* Slide Core Content Body */}
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentSlide.id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.25 }}
-                className="relative z-10 my-auto space-y-4 py-2"
-              >
-                <div>
-                  <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-snug">
-                    {currentSlide.title}
-                  </h2>
-                  <p className="text-xs sm:text-sm text-indigo-200/90 font-medium mt-1">
-                    {currentSlide.subtitle}
-                  </p>
-                </div>
+            {/* Slide Core Content Body: Either Slide 9 Grand Defense Stage or Standard Presentation Slide */}
+            {currentSlideIndex === 8 ? (
+              <div className="relative z-10 flex-1 flex flex-col my-auto py-2">
+                <RoadshowDefenseStage
+                  project={project}
+                  judges={judges}
+                  onCompleteDefense={(results) => {
+                    setQaResults(results);
+                    setShowCombinedReportModal(true);
+                  }}
+                  onSkipToReport={() => {
+                    setShowCombinedReportModal(true);
+                  }}
+                />
+              </div>
+            ) : (
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={currentSlide.id}
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -20 }}
+                  transition={{ duration: 0.25 }}
+                  className="relative z-10 my-auto space-y-4 py-2"
+                >
+                  <div>
+                    <h2 className="text-lg sm:text-2xl font-black text-white tracking-tight leading-snug">
+                      {currentSlide.title}
+                    </h2>
+                    <p className="text-xs sm:text-sm text-indigo-200/90 font-medium mt-1">
+                      {currentSlide.subtitle}
+                    </p>
+                  </div>
 
-                {/* Key Visual Metrics Grid */}
-                <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
-                  {currentSlide.visualMetrics.map((m, idx) => (
-                    <div 
-                      key={idx}
-                      className="bg-white/5 border border-white/10 hover:border-indigo-400/40 rounded-xl p-3 sm:p-4 backdrop-blur-xs transition-all relative overflow-hidden group"
-                    >
-                      {m.badge && (
-                        <span className="absolute top-2 right-2 px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-500/40 text-indigo-200 border border-indigo-300/30">
-                          {m.badge}
-                        </span>
-                      )}
-                      <div className="text-[11px] text-slate-300 truncate">{m.label}</div>
-                      <div className="text-lg sm:text-2xl font-extrabold text-white tracking-tight mt-1 font-mono text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-indigo-300">
-                        {m.value}
-                      </div>
-                      {m.hint && (
-                        <div className="text-[10px] text-indigo-300/80 mt-1 truncate">
-                          {m.hint}
+                  {/* Key Visual Metrics Grid */}
+                  <div className="grid grid-cols-3 gap-2.5 sm:gap-3">
+                    {currentSlide.visualMetrics.map((m, idx) => (
+                      <div 
+                        key={idx}
+                        className="bg-white/5 border border-white/10 hover:border-indigo-400/40 rounded-xl p-3 sm:p-4 backdrop-blur-xs transition-all relative overflow-hidden group"
+                      >
+                        {m.badge && (
+                          <span className="absolute top-2 right-2 px-1.5 py-0.2 rounded text-[10px] font-bold bg-indigo-500/40 text-indigo-200 border border-indigo-300/30">
+                            {m.badge}
+                          </span>
+                        )}
+                        <div className="text-[11px] text-slate-300 truncate">{m.label}</div>
+                        <div className="text-lg sm:text-2xl font-extrabold text-white tracking-tight mt-1 font-mono text-transparent bg-clip-text bg-gradient-to-r from-white via-indigo-100 to-indigo-300">
+                          {m.value}
                         </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                        {m.hint && (
+                          <div className="text-[10px] text-indigo-300/80 mt-1 truncate">
+                            {m.hint}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
 
-                {/* Highlight Bullets on PPT */}
-                <div className="bg-black/30 border border-white/10 rounded-xl p-3 sm:p-3.5 space-y-1.5">
-                  {currentSlide.highlightBullets.map((b, i) => (
-                    <div key={i} className="flex items-start gap-2 text-xs text-slate-200">
-                      <CheckCircle2 size={13} className="text-indigo-400 shrink-0 mt-0.5" />
-                      <span className="leading-relaxed">{b}</span>
-                    </div>
-                  ))}
-                </div>
-              </motion.div>
-            </AnimatePresence>
+                  {/* Highlight Bullets on PPT */}
+                  <div className="bg-black/30 border border-white/10 rounded-xl p-3 sm:p-3.5 space-y-1.5">
+                    {currentSlide.highlightBullets.map((b, i) => (
+                      <div key={i} className="flex items-start gap-2 text-xs text-slate-200">
+                        <CheckCircle2 size={13} className="text-indigo-400 shrink-0 mt-0.5" />
+                        <span className="leading-relaxed">{b}</span>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              </AnimatePresence>
+            )}
 
             {/* Slide Footer with Controls */}
             <div className="relative z-10 flex items-center justify-between pt-3 border-t border-white/10 text-xs text-slate-400">
@@ -458,10 +502,10 @@ export default function DefenseRoadshowScreen({
                     onClick={() => setCurrentSlideIndex(idx)}
                     className={`h-2 rounded-full transition-all ${
                       idx === currentSlideIndex 
-                        ? 'w-6 bg-indigo-400' 
+                        ? (idx === 8 ? 'w-8 bg-amber-400' : 'w-6 bg-indigo-400') 
                         : idx < currentSlideIndex 
                         ? 'w-2 bg-emerald-400' 
-                        : 'w-2 bg-white/20 hover:bg-white/40'
+                        : (idx === 8 ? 'w-3 bg-amber-400/40' : 'w-2 bg-white/20 hover:bg-white/40')
                     }`}
                     title={`跳转至第 ${idx + 1} 页：${s.title}`}
                   />
@@ -479,9 +523,21 @@ export default function DefenseRoadshowScreen({
                 </button>
                 <button
                   onClick={handleNextSlide}
-                  className="px-3 py-1 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white font-bold flex items-center gap-1 transition-colors shadow-xs"
+                  className={`px-3 py-1 rounded-lg font-bold flex items-center gap-1 transition-colors shadow-xs ${
+                    currentSlideIndex === 7
+                      ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 font-black'
+                      : currentSlideIndex === 8
+                      ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white'
+                      : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+                  }`}
                 >
-                  <span>{currentSlideIndex === MOCK_ROADSHOW_SLIDES.length - 1 ? '完成陈述' : '下一页'}</span>
+                  <span>
+                    {currentSlideIndex === 7
+                      ? '进入专家现场答辩 (P9)'
+                      : currentSlideIndex === 8
+                      ? '出具全维实训报告'
+                      : '下一页'}
+                  </span>
                   <ChevronRight size={14} />
                 </button>
               </div>
@@ -522,26 +578,41 @@ export default function DefenseRoadshowScreen({
           </div>
 
           {/* Quick Thumbnails Strip below the PPT screen */}
-          <div className="grid grid-cols-4 sm:grid-cols-8 gap-2">
+          <div className="grid grid-cols-3 sm:grid-cols-5 md:grid-cols-9 gap-2">
             {MOCK_ROADSHOW_SLIDES.map((slide, idx) => {
               const isSelected = idx === currentSlideIndex;
+              const isDefenseSlide = slide.id === 9;
               return (
                 <button
                   key={slide.id}
                   onClick={() => setCurrentSlideIndex(idx)}
                   className={`p-2 rounded-xl border text-left transition-all relative ${
                     isSelected
-                      ? 'bg-indigo-50 border-indigo-500 shadow-sm ring-2 ring-indigo-500/20'
+                      ? isDefenseSlide
+                        ? 'bg-amber-950/20 border-amber-400 shadow-sm ring-2 ring-amber-400/40 text-amber-900'
+                        : 'bg-indigo-50 border-indigo-500 shadow-sm ring-2 ring-indigo-500/20'
+                      : isDefenseSlide
+                      ? 'bg-amber-500/10 border-amber-300/40 hover:border-amber-400'
                       : 'bg-white border-slate-200 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center justify-between mb-1">
-                    <span className={`text-[10px] font-bold font-mono ${isSelected ? 'text-indigo-600' : 'text-slate-400'}`}>
-                      P{slide.id}
+                    <span className={`text-[10px] font-bold font-mono ${
+                      isSelected 
+                        ? (isDefenseSlide ? 'text-amber-600 font-black' : 'text-indigo-600') 
+                        : (isDefenseSlide ? 'text-amber-600 font-bold' : 'text-slate-400')
+                    }`}>
+                      {isDefenseSlide ? 'P9 答辩' : `P${slide.id}`}
                     </span>
-                    <span className="text-[9px] text-slate-400">{slide.plannedSeconds}s</span>
+                    <span className="text-[9px] text-slate-400">
+                      {isDefenseSlide ? '4轮质询' : `${slide.plannedSeconds}s`}
+                    </span>
                   </div>
-                  <div className={`text-[11px] font-bold truncate ${isSelected ? 'text-indigo-900' : 'text-slate-700'}`}>
+                  <div className={`text-[11px] font-bold truncate ${
+                    isSelected 
+                      ? (isDefenseSlide ? 'text-amber-900 font-black' : 'text-indigo-900') 
+                      : (isDefenseSlide ? 'text-amber-800' : 'text-slate-700')
+                  }`}>
                     {slide.category}
                   </div>
                 </button>
@@ -913,6 +984,28 @@ export default function DefenseRoadshowScreen({
           </div>
         )}
       </AnimatePresence>
+
+      {/* Comprehensive Full-Spectrum Roadshow & Defense Training Report Modal */}
+      {showCombinedReportModal && (
+        <RoadshowCombinedReportModal
+          project={project}
+          roadshowEval={generateEvaluation()}
+          qaResults={qaResults}
+          judges={judges}
+          onClose={() => {
+            setShowCombinedReportModal(false);
+            onFinishRoadshow(generateEvaluation(), false);
+          }}
+          onRestart={() => {
+            setShowCombinedReportModal(false);
+            setCurrentSlideIndex(0);
+            setTimeLeft(totalPlannedDuration);
+            setIsRunning(true);
+            setSlideTimeSpent(new Array(MOCK_ROADSHOW_SLIDES.length).fill(0));
+            setQaResults([]);
+          }}
+        />
+      )}
     </div>
   );
 }

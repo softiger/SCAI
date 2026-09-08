@@ -162,6 +162,8 @@ export default function DefensePrepScreen({
                     <span>
                       {mode.id === 'roadshow'
                         ? `路演时限：${config.roadshowDuration || '5min'} · 8页国赛标准幻灯片 · ${config.teleprompterMode === 'bullets' ? '脱稿要点提词' : '完整逐字讲稿'}`
+                        : mode.id === 'elevator'
+                        ? `演讲时限：${config.elevatorDuration === '3min' ? '3分钟标准版 (180s)' : '1分钟极速版 (60s)'} · 极速高密度表达`
                         : `单题时限：${config.timeLimit}秒 · ${config.rounds === 'unlimited' ? '自然控场' : `${config.rounds}题制`}`}
                     </span>
                   </div>
@@ -169,7 +171,11 @@ export default function DefensePrepScreen({
                   <div className="flex items-center gap-1.5">
                     <Cpu size={13} className="text-indigo-600" />
                     <span className="text-indigo-700 font-medium">
-                      {mode.id === 'roadshow' ? '模式：全真多模态大屏投影' : `难度：${config.difficulty === 'high_pressure' ? '高压严苛' : config.difficulty === 'friendly' ? '温和循诱' : '标准专业'}`}
+                      {mode.id === 'roadshow'
+                        ? '模式：全真多模态大屏投影'
+                        : mode.id === 'elevator'
+                        ? '模式：结构化极速演练'
+                        : `难度：${config.difficulty === 'high_pressure' ? '高压严苛' : config.difficulty === 'friendly' ? '温和循诱' : '标准专业'}`}
                     </span>
                   </div>
                 </div>

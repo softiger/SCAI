@@ -325,6 +325,55 @@ export default function DefenseReportScreen({
               ))}
             </div>
           </div>
+
+          {/* Live Multi-Judge Voice Defense Q&A Rounds if present */}
+          {activeRoadshowEval.qaQuestionsAndAnswers && activeRoadshowEval.qaQuestionsAndAnswers.length > 0 && (
+            <div className="space-y-3 pt-3 border-t border-white/10">
+              <div className="text-xs font-bold text-slate-200 flex items-center justify-between">
+                <span className="flex items-center gap-1.5">
+                  <Mic size={14} className="text-amber-400" />
+                  <span>多评委语音答辩质询全景回溯（{activeRoadshowEval.qaQuestionsAndAnswers.length}轮）</span>
+                </span>
+                <span className="text-[11px] font-mono text-amber-300 font-bold">
+                  答辩实测均分: {activeRoadshowEval.qaAverageScore || 95}分
+                </span>
+              </div>
+
+              <div className="space-y-2">
+                {activeRoadshowEval.qaQuestionsAndAnswers.map((item, idx) => (
+                  <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-3 text-xs space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold text-[10px]">
+                          Q{idx + 1}
+                        </span>
+                        <span className="font-bold text-white">{item.judgeName}</span>
+                        <span className="text-purple-300 text-[10px]">（{item.role}）</span>
+                      </div>
+                      <span className="font-mono font-bold text-emerald-300 text-xs">
+                        得分: {item.score}
+                      </span>
+                    </div>
+
+                    <div className="bg-black/40 rounded-lg p-2.5 text-slate-200 text-[11px] leading-relaxed">
+                      <span className="text-amber-300 font-bold mr-1.5">评委问点:</span>
+                      {item.question}
+                    </div>
+
+                    <div className="bg-indigo-950/40 border border-indigo-500/20 rounded-lg p-2.5 text-indigo-100 text-[11px] leading-relaxed">
+                      <span className="text-indigo-300 font-bold mr-1.5">选手作答:</span>
+                      {item.answer}
+                    </div>
+
+                    <div className="text-[10px] text-slate-300 flex items-start gap-1">
+                      <Sparkles size={12} className="text-amber-400 shrink-0 mt-0.5" />
+                      <span>{item.comment}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

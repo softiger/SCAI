@@ -15,7 +15,7 @@ export interface RoadshowSlide {
   id: number;
   title: string;
   subtitle: string;
-  category: '痛点洞察' | '核心突破' | '产品矩阵' | '商业模式' | '产业落地' | '创业团队' | '财务与规划' | '社会价值';
+  category: '痛点洞察' | '核心突破' | '产品矩阵' | '商业模式' | '产业落地' | '创业团队' | '财务与规划' | '社会价值' | '综合答辩';
   plannedSeconds: number;
   keyPoints: string[];
   speakerScript: string;
@@ -48,6 +48,17 @@ export interface RoadshowEvaluation {
   slideDurations: { slideId: number; title: string; spent: number; planned: number }[];
   judgeComments: { judgeName: string; role: string; comment: string; rating: '优秀' | '良好' | '需加强' }[];
   suggestedQAQuestions: string[];
+  qaRoundsCount?: number;
+  qaAverageScore?: number;
+  qaQuestionsAndAnswers?: { 
+    judgeName: string; 
+    role: string; 
+    question: string; 
+    answer: string; 
+    score: number; 
+    comment: string; 
+    timeSpent?: number 
+  }[];
 }
 
 export interface ModeDef {

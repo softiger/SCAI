@@ -16,7 +16,9 @@ import {
   Swords,
   ShieldCheck,
   Award,
-  Presentation
+  Presentation,
+  Zap,
+  Target
 } from 'lucide-react';
 import { DefenseProject, ModeDef, DefenseSessionConfig, DefenseHistoryItem } from './defenseTypes';
 import { MOCK_DEFENSE_PROJECTS, TRAINING_MODES, RECENT_DEFENSE_HISTORY } from './defenseConstants';
@@ -46,6 +48,15 @@ export default function DefenseSelectorScreen({ onStart, onViewReport, initialPr
   const handleModeClick = (mode: ModeDef) => {
     setSelectedMode(mode);
     setIsDrawerOpen(true);
+    if (mode.id === 'elevator') {
+      setConfig((c) => ({ ...c, judgeMode: 'single' }));
+    } else if (mode.id === 'followup') {
+      setConfig((c) => ({ ...c, judgeMode: 'single', difficulty: 'high_pressure' }));
+    } else if (mode.id === 'weakness') {
+      setConfig((c) => ({ ...c, judgeMode: 'single' }));
+    } else if (mode.id === 'adversarial') {
+      setConfig((c) => ({ ...c, judgeMode: 'panel', difficulty: 'high_pressure' }));
+    }
   };
 
   const handleStartWithCurrent = () => {
@@ -376,7 +387,15 @@ export default function DefenseSelectorScreen({ onStart, onViewReport, initialPr
                           </span>
                         )}
                       </div>
-                      <p className="text-xs text-slate-500 mt-0.5">配置本次演练的评委参数与对抗烈度</p>
+                      <p className="text-xs text-slate-500 mt-0.5">
+                        {selectedMode.id === 'elevator'
+                          ? '配置极速演讲时长与高密度表达节奏'
+                          : ['followup', 'weakness', 'adversarial'].includes(selectedMode.id)
+                          ? '配置本次专项质询的答辩轮次与作答时限'
+                          : selectedMode.id === 'roadshow'
+                          ? '配置路演排位时限与提词辅导模式'
+                          : '配置本次演练的评委参数与对抗烈度'}
+                      </p>
                     </div>
                   </div>
                   <button
@@ -396,56 +415,101 @@ export default function DefenseSelectorScreen({ onStart, onViewReport, initialPr
 
                 {/* Configuration Options */}
                 <div className="space-y-5">
-                  {/* Judge Mode */}
-                  <div>
-                    <label className="text-xs font-bold text-slate-800 block mb-2">评委席规模</label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { id: 'single', label: '单主审评委', sub: '自动匹配对应赛道首席专家' },
-                        { id: 'panel', label: '3人联合评委席', sub: '投资人 + 产业学者 + 财务法务' }
-                      ].map((item) => (
-                        <button
-                          key={item.id}
-                          type="button"
-                          onClick={() => setConfig((c) => ({ ...c, judgeMode: item.id as any }))}
-                          className={`p-3 rounded-xl border text-left transition-all ${
-                            config.judgeMode === item.id
-                              ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900'
-                              : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
-                          }`}
-                        >
-                          <div className="text-xs font-bold">{item.label}</div>
-                          <div className="text-[11px] text-slate-400 mt-0.5">{item.sub}</div>
-                        </button>
-                      ))}
+                  {/* Mode-specific context banner */}
+                  {selectedMode.id === 'elevator' && (
+                    <div className="bg-amber-50/80 border border-amber-200/80 rounded-xl p-3 text-xs text-amber-900 flex items-start gap-2.5">
+                      <Zap size={16} className="text-amber-600 shrink-0 mt-0.5" />
+                      <div className="leading-relaxed">
+                        <span className="font-bold">电梯演讲模式：</span>
+                        聚焦极速高密度自主陈述与商业壁垒提炼，无需配置评委席位；演练结束后将自动输出六维表达力与痛点清晰度分析报告。
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  {/* Difficulty Style */}
-                  <div>
-                    <label className="text-xs font-bold text-slate-800 block mb-2">评委质询风格与烈度</label>
-                    <div className="grid grid-cols-3 gap-2.5">
-                      {[
-                        { id: 'friendly', title: '温和肯定', sub: '先鼓励再提建议' },
-                        { id: 'standard', title: '标准专业', sub: '中立直奔核心漏洞' },
-                        { id: 'high_pressure', title: '高压刁难', sub: '连环抓痛脚极限施压' }
-                      ].map((s) => (
-                        <button
-                          key={s.id}
-                          type="button"
-                          onClick={() => setConfig((c) => ({ ...c, difficulty: s.id as any }))}
-                          className={`p-3 rounded-xl border text-center transition-all ${
-                            config.difficulty === s.id
-                              ? 'border-indigo-600 bg-indigo-50/60 text-indigo-900 font-bold'
-                              : 'border-slate-200 bg-white hover:border-slate-300 text-slate-600'
-                          }`}
-                        >
-                          <div className="text-xs">{s.title}</div>
-                          <div className="text-[10px] text-slate-400 mt-0.5">{s.sub}</div>
-                        </button>
-                      ))}
+                  {selectedMode.id === 'followup' && (
+                    <div className="bg-sky-50/80 border border-sky-200/80 rounded-xl p-3 text-xs text-sky-900 flex items-start gap-2.5">
+                      <Target size={16} className="text-sky-600 shrink-0 mt-0.5" />
+                      <div className="leading-relaxed">
+                        <span className="font-bold">评委预置：</span>
+                        系统已自动选定国赛资深常委专家，锁定申报书单一核心逻辑漏洞连环下钻追问，无需手动配置评委席位。
+                      </div>
                     </div>
-                  </div>
+                  )}
+
+                  {selectedMode.id === 'weakness' && (
+                    <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-xl p-3 text-xs text-emerald-900 flex items-start gap-2.5">
+                      <Flame size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                      <div className="leading-relaxed">
+                        <span className="font-bold">评委预置：</span>
+                        系统已读取项目对标评测画像，定向匹配薄弱维度专项评委（技术壁垒/商业落地/财务测算）展开精准突击。
+                      </div>
+                    </div>
+                  )}
+
+                  {selectedMode.id === 'adversarial' && (
+                    <div className="bg-rose-50/80 border border-rose-200/80 rounded-xl p-3 text-xs text-rose-900 flex items-start gap-2.5">
+                      <Swords size={16} className="text-rose-600 shrink-0 mt-0.5" />
+                      <div className="leading-relaxed">
+                        <span className="font-bold">评委预置：</span>
+                        系统已锁定挑剔型一线硬科技投资人与严苛国赛评审专家，全程进行极限抗辩与对抗性质询。
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Judge Mode (评委席规模 / 评委选择)：电梯演讲、高压追问、弱项突击、对抗性演练均不显示 */}
+                  {!['elevator', 'followup', 'weakness', 'adversarial', 'roadshow'].includes(selectedMode.id) && (
+                    <div>
+                      <label className="text-xs font-bold text-slate-800 block mb-2">评委选择 / 席位规模</label>
+                      <div className="grid grid-cols-2 gap-3">
+                        {[
+                          { id: 'single', label: '单主审评委', sub: '自动匹配对应赛道首席专家' },
+                          { id: 'panel', label: '3人联合评委席', sub: '投资人 + 产业学者 + 财务法务' }
+                        ].map((item) => (
+                          <button
+                            key={item.id}
+                            type="button"
+                            onClick={() => setConfig((c) => ({ ...c, judgeMode: item.id as any }))}
+                            className={`p-3 rounded-xl border text-left transition-all ${
+                              config.judgeMode === item.id
+                                ? 'border-indigo-600 bg-indigo-50/50 text-indigo-900'
+                                : 'border-slate-200 bg-white hover:border-slate-300 text-slate-700'
+                            }`}
+                          >
+                            <div className="text-xs font-bold">{item.label}</div>
+                            <div className="text-[11px] text-slate-400 mt-0.5">{item.sub}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Difficulty Style (仅非电梯演讲、非路演显示) */}
+                  {!['elevator', 'roadshow'].includes(selectedMode.id) && (
+                    <div>
+                      <label className="text-xs font-bold text-slate-800 block mb-2">评委质询风格与烈度</label>
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {[
+                          { id: 'friendly', title: '温和肯定', sub: '先鼓励再提建议' },
+                          { id: 'standard', title: '标准专业', sub: '中立直奔核心漏洞' },
+                          { id: 'high_pressure', title: '高压刁难', sub: '连环抓痛脚极限施压' }
+                        ].map((s) => (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => setConfig((c) => ({ ...c, difficulty: s.id as any }))}
+                            className={`p-3 rounded-xl border text-center transition-all ${
+                              config.difficulty === s.id
+                                ? 'border-indigo-600 bg-indigo-50/60 text-indigo-900 font-bold'
+                                : 'border-slate-200 bg-white hover:border-slate-300 text-slate-600'
+                            }`}
+                          >
+                            <div className="text-xs">{s.title}</div>
+                            <div className="text-[10px] text-slate-400 mt-0.5">{s.sub}</div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Mode-specific: Roadshow or Elevator Pitch or Standard QA */}
                   {selectedMode.id === 'roadshow' ? (
@@ -554,26 +618,28 @@ export default function DefenseSelectorScreen({ onStart, onViewReport, initialPr
                     </div>
                   )}
 
-                  {/* Per Question Time Limit */}
-                  <div>
-                    <label className="text-xs font-bold text-slate-800 block mb-2">单题回答时限</label>
-                    <div className="grid grid-cols-3 gap-2.5">
-                      {[60, 90, 120].map((t) => (
-                        <button
-                          key={t}
-                          type="button"
-                          onClick={() => setConfig((c) => ({ ...c, timeLimit: t }))}
-                          className={`py-2 rounded-xl border text-xs font-medium transition-all ${
-                            config.timeLimit === t
-                              ? 'border-indigo-600 bg-indigo-50 text-indigo-900 font-bold'
-                              : 'border-slate-200 bg-white hover:border-slate-300 text-slate-600'
-                          }`}
-                        >
-                          {t} 秒
-                        </button>
-                      ))}
+                  {/* Per Question Time Limit (仅非路演、非电梯演讲显示) */}
+                  {!['roadshow', 'elevator'].includes(selectedMode.id) && (
+                    <div>
+                      <label className="text-xs font-bold text-slate-800 block mb-2">单题回答时限</label>
+                      <div className="grid grid-cols-3 gap-2.5">
+                        {[60, 90, 120].map((t) => (
+                          <button
+                            key={t}
+                            type="button"
+                            onClick={() => setConfig((c) => ({ ...c, timeLimit: t }))}
+                            className={`py-2 rounded-xl border text-xs font-medium transition-all ${
+                              config.timeLimit === t
+                                ? 'border-indigo-600 bg-indigo-50 text-indigo-900 font-bold'
+                                : 'border-slate-200 bg-white hover:border-slate-300 text-slate-600'
+                            }`}
+                          >
+                            {t} 秒
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
 
